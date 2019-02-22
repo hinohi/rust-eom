@@ -1,7 +1,9 @@
 [package]
-name = "rust-eom"
+name = "eom-sim"
 version = "0.1.0"
 authors = ["Daiju Nakayama <42.daiju@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+nalgebra = "0.17"
+typenum = "*"
