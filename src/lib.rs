@@ -42,12 +42,12 @@ where
     );
 }
 
-pub trait FixTimeStepEvolution<S>: ModelSpec
+pub trait FixStepTimeEvolution<S>: ModelSpec
 where
     S: VectorStorage<Self::Scalar, Self::Dim>,
 {
     type Time: Real;
-    fn evaluate(
+    fn exact_dt(
         &mut self,
         x: &mut Vector<Self::Scalar, Self::Dim, S>,
         v: &mut Vector<Self::Scalar, Self::Dim, S>,

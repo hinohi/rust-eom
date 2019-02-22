@@ -38,7 +38,7 @@ fn main() {
     let mut t = 0.0;
     let dt = 0.25;
     for _ in 0..100 {
-        toe.evaluate(&mut x, &mut v, dt);
+        toe.exact_dt(&mut x, &mut v, dt);
         t += dt;
         println!("{} {} {}", t, x[0], v[0]);
     }

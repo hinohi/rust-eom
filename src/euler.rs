@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use nalgebra::{Real, Vector};
 
-use crate::{Explicit, FixTimeStepEvolution, ModelSpec, VectorStorage};
+use crate::{Explicit, FixStepTimeEvolution, ModelSpec, VectorStorage};
 
 pub struct Euler<'a, E, S, R>
 where
@@ -39,7 +39,7 @@ where
     type Dim = E::Dim;
 }
 
-impl<'a, E, S, R> FixTimeStepEvolution<S> for Euler<'a, E, S, R>
+impl<'a, E, S, R> FixStepTimeEvolution<S> for Euler<'a, E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
@@ -47,7 +47,7 @@ where
     E::Scalar: From<R>,
 {
     type Time = R;
-    fn evaluate(
+    fn exact_dt(
         &mut self,
         x: &mut Vector<Self::Scalar, Self::Dim, S>,
         v: &mut Vector<Self::Scalar, Self::Dim, S>,
