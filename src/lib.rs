@@ -1,11 +1,11 @@
-pub mod euler;
+pub mod explicit_fixed_step;
 
 use nalgebra::{
     storage::{Storage, StorageMut},
     DimName, Real, Scalar, Vector,
 };
 
-pub use euler::Euler;
+pub use explicit_fixed_step::Euler;
 
 pub trait VectorStorage<N, D>: Storage<N, D> + StorageMut<N, D>
 where
@@ -34,15 +34,15 @@ pub trait Explicit<S>: ModelSpec
 where
     S: VectorStorage<Self::Scalar, Self::Dim>,
 {
-    fn force(
+    fn acceleration(
         &self,
         x: &Vector<Self::Scalar, Self::Dim, S>,
         v: &Vector<Self::Scalar, Self::Dim, S>,
-        f: &mut Vector<Self::Scalar, Self::Dim, S>,
+        a: &mut Vector<Self::Scalar, Self::Dim, S>,
     );
 }
 
-pub trait FixStepTimeEvolution<S>: ModelSpec
+pub trait FixedStepTimeEvolution<S>: ModelSpec
 where
     S: VectorStorage<Self::Scalar, Self::Dim>,
 {

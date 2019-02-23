@@ -1,3 +1,4 @@
+use eom_sim::explicit_fixed_step::RK4;
 use eom_sim::*;
 use nalgebra::{Vector, Vector1, U1};
 
@@ -40,13 +41,13 @@ where
 
 fn main() {
     let eom = Oscillator::new(1.0, 4.0);
-    let mut euler = Euler::new(&eom, Vector1::new(0.0));
+    let mut rk4 = RK4::new(&eom, Vector1::new(0.0));
     let mut x = Vector1::new(1.0);
     let mut v = Vector1::new(0.0);
     let mut t = 0.0;
     let dt = 2.0_f64.powi(-10);
     for _ in 0..10000 {
-        euler.exact_dt(&mut x, &mut v, dt);
+        rk4.exact_dt(&mut x, &mut v, dt);
         t += dt;
         println!("{} {} {} {}", t, x[0], v[0], eom.energy(&x, &v));
     }
