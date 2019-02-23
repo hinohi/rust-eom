@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use eom_sim::*;
 use nalgebra::{Vector, Vector1, U1};
 
@@ -29,7 +32,7 @@ where
     S: VectorStorage<Self::Scalar, Self::Dim>,
 {
     fn acceleration(
-        &self,
+        &mut self,
         x: &Vector<Self::Scalar, Self::Dim, S>,
         _v: &Vector<Self::Scalar, Self::Dim, S>,
         a: &mut Vector<Self::Scalar, Self::Dim, S>,
@@ -39,8 +42,8 @@ where
 }
 
 fn main() {
-    let eom = Oscillator::new(1.0, 4.0);
-    let mut euler = Euler::new(&eom, Vector1::new(0.0));
+    let mut eom = Rc::new(RefCell::new(Oscillator::new(1.0, 4.0)));
+    let mut euler = Euler::new(eom.clone(), Vector1::new(0.0));
     let mut x = Vector1::new(1.0);
     let mut v = Vector1::new(0.0);
     let mut t = 0.0;
@@ -48,6 +51,6 @@ fn main() {
     for _ in 0..10000 {
         euler.exact_dt(&mut x, &mut v, dt);
         t += dt;
-        println!("{} {} {} {}", t, x[0], v[0], eom.energy(&x, &v));
+        println!("{} {} {} {}", t, x[0], v[0], eom.borrow().energy(&x, &v));
     }
 }

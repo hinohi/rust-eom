@@ -5,7 +5,7 @@ use nalgebra::{
     DimName, Real, Scalar, Vector,
 };
 
-pub use explicit_fixed_step::Euler;
+pub use explicit_fixed_step::{Euler, RK4};
 
 pub trait VectorStorage<N, D>: Storage<N, D> + StorageMut<N, D>
 where
@@ -35,7 +35,7 @@ where
     S: VectorStorage<Self::Scalar, Self::Dim>,
 {
     fn acceleration(
-        &self,
+        &mut self,
         x: &Vector<Self::Scalar, Self::Dim, S>,
         v: &Vector<Self::Scalar, Self::Dim, S>,
         a: &mut Vector<Self::Scalar, Self::Dim, S>,

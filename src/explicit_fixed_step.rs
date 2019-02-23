@@ -1,46 +1,47 @@
+use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 use nalgebra::{Real, Vector};
 use num_traits::FromPrimitive;
 
 use crate::{Explicit, FixedStepTimeEvolution, ModelSpec, VectorStorage};
 
-pub struct Euler<'a, E, S, R>
+pub struct Euler<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
 {
-    e: &'a E,
+    eom: Rc<RefCell<E>>,
     a: Vector<E::Scalar, E::Dim, S>,
 
     _phantom: PhantomData<R>,
 }
 
-impl<'a, E, S, R> Euler<'a, E, S, R>
+impl<E, S, R> Euler<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
 {
-    pub fn new(e: &'a E, f: Vector<E::Scalar, E::Dim, S>) -> Euler<'a, E, S, R> {
+    pub fn new(eom: Rc<RefCell<E>>, a: Vector<E::Scalar, E::Dim, S>) -> Euler<E, S, R> {
         Euler {
-            e,
-            a: f,
+            eom,
+            a,
             _phantom: PhantomData,
         }
     }
 }
 
-impl<'a, E, S, R> ModelSpec for Euler<'a, E, S, R>
+impl<E, S, R> ModelSpec for Euler<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
-    R: Real,
 {
     type Scalar = E::Scalar;
     type Dim = E::Dim;
 }
 
-impl<'a, E, S, R> FixedStepTimeEvolution<S> for Euler<'a, E, S, R>
+impl<E, S, R> FixedStepTimeEvolution<S> for Euler<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
@@ -54,7 +55,7 @@ where
         v: &mut Vector<Self::Scalar, Self::Dim, S>,
         dt: Self::Time,
     ) {
-        self.e.acceleration(x, v, &mut self.a);
+        self.eom.borrow_mut().acceleration(x, v, &mut self.a);
         x.iter_mut()
             .zip(v.iter_mut())
             .zip(self.a.iter())
@@ -66,12 +67,12 @@ where
     }
 }
 
-pub struct RK4<'a, E, S, R>
+pub struct RK4<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
 {
-    e: &'a E,
+    eom: Rc<RefCell<E>>,
     x1: Vector<E::Scalar, E::Dim, S>,
     x2: Vector<E::Scalar, E::Dim, S>,
     x3: Vector<E::Scalar, E::Dim, S>,
@@ -86,15 +87,15 @@ where
     _phantom: PhantomData<R>,
 }
 
-impl<'a, E, S, R> RK4<'a, E, S, R>
+impl<E, S, R> RK4<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
     Vector<E::Scalar, E::Dim, S>: Clone,
 {
-    pub fn new(e: &'a E, x: Vector<E::Scalar, E::Dim, S>) -> RK4<'a, E, S, R> {
+    pub fn new(eom: Rc<RefCell<E>>, x: Vector<E::Scalar, E::Dim, S>) -> RK4<E, S, R> {
         RK4 {
-            e,
+            eom,
             x1: x.clone(),
             x2: x.clone(),
             x3: x.clone(),
@@ -109,17 +110,16 @@ where
         }
     }
 }
-impl<'a, E, S, R> ModelSpec for RK4<'a, E, S, R>
+impl<E, S, R> ModelSpec for RK4<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
-    R: Real,
 {
     type Scalar = E::Scalar;
     type Dim = E::Dim;
 }
 
-impl<'a, E, S, R> FixedStepTimeEvolution<S> for RK4<'a, E, S, R>
+impl<E, S, R> FixedStepTimeEvolution<S> for RK4<E, S, R>
 where
     E: Explicit<S>,
     S: VectorStorage<E::Scalar, E::Dim>,
@@ -133,11 +133,12 @@ where
         v: &mut Vector<Self::Scalar, Self::Dim, S>,
         dt: Self::Time,
     ) {
+        let mut eom = self.eom.borrow_mut();
         let dt = Self::Scalar::from(dt);
         let dt2 = dt * Self::Scalar::from_f64(0.5).unwrap();
         let dt6 = dt / Self::Scalar::from_f64(6.0).unwrap();
         // k1
-        self.e.acceleration(x, v, &mut self.a1);
+        eom.acceleration(x, v, &mut self.a1);
         self.x1
             .iter_mut()
             .zip(x.iter())
@@ -155,7 +156,7 @@ where
             })
             .last();
         // k2
-        self.e.acceleration(&self.x1, &self.v1, &mut self.a2);
+        eom.acceleration(&self.x1, &self.v1, &mut self.a2);
         self.x2
             .iter_mut()
             .zip(x.iter())
@@ -173,7 +174,7 @@ where
             })
             .last();
         // k3
-        self.e.acceleration(&self.x2, &self.v2, &mut self.a3);
+        eom.acceleration(&self.x2, &self.v2, &mut self.a3);
         self.x3
             .iter_mut()
             .zip(x.iter())
@@ -191,7 +192,7 @@ where
             })
             .last();
         // k4
-        self.e.acceleration(&self.x3, &self.v3, &mut self.a4);
+        eom.acceleration(&self.x3, &self.v3, &mut self.a4);
         // sum
         let two = Self::Scalar::from_f64(2.0).unwrap();
         x.iter_mut()
