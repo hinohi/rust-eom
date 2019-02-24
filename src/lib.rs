@@ -41,7 +41,7 @@ where
     );
 }
 
-pub trait FixedStepTimeEvolution<S>: ModelSpec
+pub trait TimeEvolution<S>: ModelSpec
 where
     S: VectorStorage<Self::Scalar, Self::Dim>,
 {
@@ -52,4 +52,17 @@ where
         v: &mut Vector<Self::Scalar, Self::Dim, S>,
         dt: Self::Time,
     );
+
+    fn iterate_n(
+        &mut self,
+        t: &mut Self::Time,
+        x: &mut Vector<Self::Scalar, Self::Dim, S>,
+        v: &mut Vector<Self::Scalar, Self::Dim, S>,
+        dt: Self::Time,
+        n: usize,
+    ) {
+        for _ in 0..n {
+            self.iterate(t, x, v, dt);
+        }
+    }
 }

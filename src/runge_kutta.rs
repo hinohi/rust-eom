@@ -4,7 +4,7 @@ use std::rc::Rc;
 use nalgebra::Vector;
 use num_traits::cast::FromPrimitive;
 
-use crate::{Explicit, FixedStepTimeEvolution, ModelSpec, VectorStorage};
+use crate::{Explicit, TimeEvolution, ModelSpec, VectorStorage};
 
 pub struct RK1<E, S>
 where
@@ -35,7 +35,7 @@ where
     type Dim = E::Dim;
 }
 
-impl<E, S> FixedStepTimeEvolution<S> for RK1<E, S>
+impl<E, S> TimeEvolution<S> for RK1<E, S>
 where
     E: Explicit<S>,
     E::Scalar: From<E::Time>,
@@ -102,7 +102,7 @@ where
     type Dim = E::Dim;
 }
 
-impl<E, S> FixedStepTimeEvolution<S> for RK2<E, S>
+impl<E, S> TimeEvolution<S> for RK2<E, S>
 where
     E: Explicit<S>,
     E::Scalar: From<E::Time>,
@@ -199,7 +199,7 @@ where
     type Dim = E::Dim;
 }
 
-impl<E, S> FixedStepTimeEvolution<S> for RK4<E, S>
+impl<E, S> TimeEvolution<S> for RK4<E, S>
 where
     E: Explicit<S>,
     E::Scalar: From<E::Time>,

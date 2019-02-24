@@ -17,9 +17,7 @@ fn oscillator_rk1() {
         let (mut x, mut v) = eom.borrow().init_state();
         let dt = 2.0_f64.powi(-i);
         for j in 0..err.len() {
-            for _ in 0..1 << i {
-                rk.iterate(&mut t, &mut x, &mut v, dt);
-            }
+            rk.iterate_n(&mut t, &mut x, &mut v, dt, (1 << i) as usize);
             assert_eq!(t, (j + 1) as f64);
             let ex = eom.borrow().exact_position(t);
             err[j].push((x - ex).norm());
@@ -44,9 +42,7 @@ fn oscillator_rk2() {
         let (mut x, mut v) = eom.borrow().init_state();
         let dt = 2.0_f64.powi(-i);
         for j in 0..err.len() {
-            for _ in 0..1 << i {
-                rk.iterate(&mut t, &mut x, &mut v, dt);
-            }
+            rk.iterate_n(&mut t, &mut x, &mut v, dt, (1 << i) as usize);
             assert_eq!(t, (j + 1) as f64);
             let ex = eom.borrow().exact_position(t);
             err[j].push((x - ex).norm());
@@ -71,9 +67,7 @@ fn oscillator_rk4() {
         let (mut x, mut v) = eom.borrow().init_state();
         let dt = 2.0_f64.powi(-i);
         for j in 0..err.len() {
-            for _ in 0..1 << i {
-                rk.iterate(&mut t, &mut x, &mut v, dt);
-            }
+            rk.iterate_n(&mut t, &mut x, &mut v, dt, (1 << i) as usize);
             assert_eq!(t, (j + 1) as f64);
             let ex = eom.borrow().exact_position(t);
             err[j].push((x - ex).norm());
