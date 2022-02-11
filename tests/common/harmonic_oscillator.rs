@@ -77,11 +77,11 @@ fn particular_solution(t: f64, zeta: f64, omega0: f64, omega: f64, f: f64) -> (f
     )
 }
 
-impl ModelSpec for Oscillator {
+impl ModelSpec for &Oscillator {
     type Scalar = f64;
 }
 
-impl Explicit for Oscillator {
+impl Explicit for &Oscillator {
     fn acceleration(&self, t: Self::Scalar, x: &[f64], v: &[f64], a: &mut [f64]) {
         for (i, a) in a.iter_mut().enumerate() {
             let p = -2.0 * self.zeta[i] * self.omega0[i] * v[i];

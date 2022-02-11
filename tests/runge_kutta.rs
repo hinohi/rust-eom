@@ -6,7 +6,7 @@ use common::harmonic_oscillator::Oscillator;
 #[test]
 fn oscillator_rk1() {
     let eom = Oscillator::new();
-    let mut rk = RK1::new(eom.clone());
+    let mut rk = RK1::new(&eom);
     let mut err = vec![vec![], vec![], vec![]];
     for i in 8..16 {
         let mut t = 0.0;
@@ -31,7 +31,7 @@ fn oscillator_rk1() {
 #[test]
 fn oscillator_rk2() {
     let eom = Oscillator::new();
-    let mut rk = RK2::new(eom.clone());
+    let mut rk = RK2::new(&eom);
     let mut err = vec![vec![], vec![], vec![]];
     for i in 6..14 {
         let mut t = 0.0;
@@ -56,7 +56,7 @@ fn oscillator_rk2() {
 #[test]
 fn oscillator_rk4() {
     let eom = Oscillator::new();
-    let mut rk = RK4::new(eom.clone());
+    let mut rk = RK4::new(&eom);
     let mut err = vec![vec![], vec![], vec![]];
     for i in 2..10 {
         let mut t = 0.0;
