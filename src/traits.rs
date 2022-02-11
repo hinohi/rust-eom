@@ -1,7 +1,7 @@
 use num_traits::{Num, NumAssign};
 
 pub trait ModelSpec {
-    type Scalar: Copy + Num + NumAssign;
+    type Scalar: Copy + Num + NumAssign + PartialOrd;
 }
 
 pub trait Explicit: ModelSpec {
@@ -23,16 +23,16 @@ pub trait TimeEvolution: ModelSpec {
         dt: Self::Scalar,
     ) -> Self::Scalar;
 
-    fn iterate_n(
+    fn iterate_until(
         &mut self,
         t: &mut Self::Scalar,
         x: &mut [Self::Scalar],
         v: &mut [Self::Scalar],
         dt: Self::Scalar,
-        n: usize,
+        until: Self::Scalar,
     ) -> Self::Scalar {
         let mut dt = dt;
-        for _ in 0..n {
+        while *t < until {
             dt = self.iterate(t, x, v, dt);
         }
         dt
