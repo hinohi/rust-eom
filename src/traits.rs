@@ -1,4 +1,4 @@
-use num_traits::{Num, NumAssign};
+use num_traits::{Num, NumAssign, Zero};
 
 pub trait ModelSpec {
     type Scalar: Copy + Num + NumAssign + PartialOrd;
@@ -14,26 +14,32 @@ pub trait Explicit: ModelSpec {
     );
 }
 
-pub trait TimeEvolution: ModelSpec {
+pub trait TimeEvolution<E: Explicit> {
     fn iterate(
         &mut self,
-        t: &mut Self::Scalar,
-        x: &mut [Self::Scalar],
-        v: &mut [Self::Scalar],
-        dt: Self::Scalar,
-    ) -> Self::Scalar;
+        eom: &E,
+        t: &mut E::Scalar,
+        x: &mut [E::Scalar],
+        v: &mut [E::Scalar],
+        a: &[E::Scalar],
+        dt: E::Scalar,
+    );
 
     fn iterate_until(
         &mut self,
-        t: &mut Self::Scalar,
-        x: &mut [Self::Scalar],
-        v: &mut [Self::Scalar],
-        dt: Self::Scalar,
-        until: Self::Scalar,
-    ) -> Self::Scalar {
-        let mut dt = dt;
+        eom: &E,
+        t: &mut E::Scalar,
+        x: &mut [E::Scalar],
+        v: &mut [E::Scalar],
+        dt: E::Scalar,
+        until: E::Scalar,
+    ) -> E::Scalar {
+        let n = x.len();
+        assert_eq!(n, v.len());
+        let mut a = vec![E::Scalar::zero(); n];
         while *t < until {
-            dt = self.iterate(t, x, v, dt);
+            eom.acceleration(*t, x, v, &mut a);
+            self.iterate(eom, t, x, v, &mut a, dt);
         }
         dt
     }

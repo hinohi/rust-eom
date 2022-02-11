@@ -30,16 +30,18 @@ impl Explicit for Pendulum {
 
 fn main() {
     let eom = Pendulum { g: vec![0.0, 9.8] };
-    let mut rk = RK4::new(eom);
+    let mut rk = RK4::new();
     let length = 0.5;
     let theta = std::f64::consts::FRAC_PI_3;
-    let mut dt = 1.0 / 128.0;
+    let dt = 1.0 / 128.0;
     let mut t = 0.0;
     let mut x = vec![length * theta.cos(), length * theta.sin()];
     let mut v = vec![0.0, 0.0];
+    let mut a = vec![0.0, 0.0];
     while t <= 10.0 {
         println!("{} {} {} {} {}", t, x[0], x[1], v[0], v[1]);
-        dt = rk.iterate(&mut t, &mut x, &mut v, dt);
+        eom.acceleration(t, &x, &v, &mut a);
+        rk.iterate(&eom, &mut t, &mut x, &mut v, &mut a, dt);
         let l = length / norm(&x);
         zip_apply!(x in x.iter_mut(); *x *= l);
     }
