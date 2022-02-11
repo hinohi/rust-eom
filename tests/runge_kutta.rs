@@ -1,15 +1,7 @@
-use eom_sim::{runge_kutta::*, *};
+use eom_sim::{runge_kutta::*, utils::diff_norm, TimeEvolution};
 
 mod common;
 use common::harmonic_oscillator::Oscillator;
-
-fn error_norm(a: &[f64], b: &[f64]) -> f64 {
-    let mut s = 0.0;
-    for (&a, &b) in a.iter().zip(b) {
-        s += (a - b) * (a - b);
-    }
-    s.sqrt()
-}
 
 #[test]
 fn oscillator_rk1() {
@@ -24,7 +16,7 @@ fn oscillator_rk1() {
             rk.iterate_until(&mut t, &mut x, &mut v, dt, (j + 1) as f64);
             assert_eq!(t, (j + 1) as f64);
             let ex = eom.exact_position(t);
-            err[j].push(error_norm(&x, &ex));
+            err[j].push(diff_norm(&x, &ex));
         }
     }
     for e in err {
@@ -49,7 +41,7 @@ fn oscillator_rk2() {
             rk.iterate_until(&mut t, &mut x, &mut v, dt, (j + 1) as f64);
             assert_eq!(t, (j + 1) as f64);
             let ex = eom.exact_position(t);
-            err[j].push(error_norm(&x, &ex));
+            err[j].push(diff_norm(&x, &ex));
         }
     }
     for e in err {
@@ -74,7 +66,7 @@ fn oscillator_rk4() {
             rk.iterate_until(&mut t, &mut x, &mut v, dt, (j + 1) as f64);
             assert_eq!(t, (j + 1) as f64);
             let ex = eom.exact_position(t);
-            err[j].push(error_norm(&x, &ex));
+            err[j].push(diff_norm(&x, &ex));
         }
     }
     for e in err {
