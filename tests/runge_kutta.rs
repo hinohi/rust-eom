@@ -1,4 +1,4 @@
-use eom_sim::*;
+use eom_sim::{runge_kutta::*, *};
 
 mod common;
 use common::harmonic_oscillator::Oscillator;
