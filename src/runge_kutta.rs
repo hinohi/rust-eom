@@ -99,34 +99,36 @@ impl<E: Explicit> TimeEvolution<E> for RK4<E> {
         let dt6 = dt / six;
         let mut x_tmp = vec![E::Scalar::zero(); n];
         let mut v_tmp = vec![E::Scalar::zero(); n];
+        let mut a_tmp = vec![E::Scalar::zero(); n];
         // k1
         zip_apply!(xx in x_tmp.iter_mut(), &x in x.iter(), &v in v.iter(); *xx = x + v * dt2);
         zip_apply!(vv in v_tmp.iter_mut(), &v in v.iter(), &a in a.iter(); *vv = v + a * dt2);
         // k2
         let mut v23 = vec![E::Scalar::zero(); n];
-        let mut a2 = vec![E::Scalar::zero(); n];
-        eom.acceleration(*t + dt2, &x_tmp, &v_tmp, &mut a2);
+        let mut a23 = vec![E::Scalar::zero(); n];
+        eom.acceleration(*t + dt2, &x_tmp, &v_tmp, &mut a23);
         zip_apply!(xx in x_tmp.iter_mut(), &x in x.iter(), &v in v_tmp.iter(); *xx = x + v * dt2);
-        zip_apply!(vv in v23.iter_mut(), &v in v.iter(), &a in a2.iter(); *vv = v + a * dt2);
+        zip_apply!(vv in v23.iter_mut(), &v in v.iter(), &a in a23.iter(); *vv = v + a * dt2);
         // k3
-        let mut a3 = vec![E::Scalar::zero(); n];
-        eom.acceleration(*t + dt2, &x_tmp, &v23, &mut a3);
+        eom.acceleration(*t + dt2, &x_tmp, &v23, &mut a_tmp);
         zip_apply!(xx in x_tmp.iter_mut(), &x in x.iter(), &v in v23.iter(), vv in v_tmp.iter_mut(); {
             *xx = x + v * dt;
             *vv += v;
         });
-        zip_apply!(vv in v23.iter_mut(), &v in v.iter(), &a in a3.iter(); *vv = v + a * dt);
+        zip_apply!(vv in v23.iter_mut(), &v in v.iter(), &a in a_tmp.iter(), aa in a23.iter_mut(); {
+            *vv = v + a * dt;
+            *aa += a;
+        });
         // k4
-        let mut a4 = vec![E::Scalar::zero(); n];
-        eom.acceleration(*t + dt, &x_tmp, &v23, &mut a4);
+        eom.acceleration(*t + dt, &x_tmp, &v23, &mut a_tmp);
         // sum
         zip_apply!(
             x in x.iter_mut(), &v in v.iter(), &v12 in v_tmp.iter(), &v3 in v23.iter();
             *x += (v + v12 * two + v3) * dt6
         );
         zip_apply!(
-            v in v.iter_mut(), &a1 in a.iter(), &a2 in a2.iter(), &a3 in a3.iter(), &a4 in a4.iter();
-            *v += (a1 + (a2 + a3) * two + a4) * dt6
+            v in v.iter_mut(), &a1 in a.iter(), &a23 in a23.iter(), &a4 in a_tmp.iter();
+            *v += (a1 + a23 * two + a4) * dt6
         );
         *t += dt;
     }
