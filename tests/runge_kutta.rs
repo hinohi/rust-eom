@@ -1,4 +1,4 @@
-use eom_sim::{runge_kutta::*, utils::diff_norm, TimeEvolution};
+use eom_sim::{runge_kutta::*, utils::diff_norm, Explicit};
 
 mod common;
 use common::harmonic_oscillator::Oscillator;

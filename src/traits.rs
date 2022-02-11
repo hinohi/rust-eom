@@ -4,7 +4,8 @@ pub trait ModelSpec {
     type Scalar: Copy + Num + NumAssign + PartialOrd;
 }
 
-pub trait Explicit: ModelSpec {
+/// Equation of Motion
+pub trait Eom: ModelSpec {
     fn acceleration(
         &self,
         t: Self::Scalar,
@@ -12,9 +13,12 @@ pub trait Explicit: ModelSpec {
         v: &[Self::Scalar],
         a: &mut [Self::Scalar],
     );
+
+    fn correct(&self, _t: Self::Scalar, _x: &mut [Self::Scalar], _v: &mut [Self::Scalar]) {}
 }
 
-pub trait TimeEvolution<E: Explicit> {
+/// Explicit time evolution
+pub trait Explicit<E: Eom> {
     fn iterate(
         &mut self,
         eom: &E,
@@ -40,6 +44,7 @@ pub trait TimeEvolution<E: Explicit> {
         while *t < until {
             eom.acceleration(*t, x, v, &mut a);
             self.iterate(eom, t, x, v, &mut a, dt);
+            eom.correct(*t, x, v);
         }
         dt
     }

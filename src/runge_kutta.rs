@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use num_traits::{One, Zero};
 
-use crate::{zip_apply, Explicit, TimeEvolution};
+use crate::{zip_apply, Eom, Explicit};
 
 pub struct RK1<E> {
     model: PhantomData<E>,
@@ -14,7 +14,7 @@ impl<E> RK1<E> {
     }
 }
 
-impl<E: Explicit> TimeEvolution<E> for RK1<E> {
+impl<E: Eom> Explicit<E> for RK1<E> {
     fn iterate(
         &mut self,
         _eom: &E,
@@ -42,7 +42,7 @@ impl<E> RK2<E> {
     }
 }
 
-impl<E: Explicit> TimeEvolution<E> for RK2<E> {
+impl<E: Eom> Explicit<E> for RK2<E> {
     fn iterate(
         &mut self,
         eom: &E,
@@ -80,7 +80,7 @@ impl<E> RK4<E> {
     }
 }
 
-impl<E: Explicit> TimeEvolution<E> for RK4<E> {
+impl<E: Eom> Explicit<E> for RK4<E> {
     fn iterate(
         &mut self,
         eom: &E,

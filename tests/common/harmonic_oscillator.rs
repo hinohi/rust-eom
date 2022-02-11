@@ -81,7 +81,7 @@ impl ModelSpec for Oscillator {
     type Scalar = f64;
 }
 
-impl Explicit for Oscillator {
+impl Eom for Oscillator {
     fn acceleration(&self, t: Self::Scalar, x: &[f64], v: &[f64], a: &mut [f64]) {
         for (i, a) in a.iter_mut().enumerate() {
             let p = -2.0 * self.zeta[i] * self.omega0[i] * v[i];
