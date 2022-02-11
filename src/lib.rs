@@ -1,68 +1,44 @@
 pub mod runge_kutta;
 
-use nalgebra::{
-    storage::{Storage, StorageMut},
-    Dim, Real, Scalar, Vector,
-};
+use num_traits::{Num, NumAssign};
 
 pub use runge_kutta::*;
 
-pub trait VectorStorage<N, D>: Storage<N, D> + StorageMut<N, D>
-where
-    N: Scalar,
-    D: Dim,
-{
-}
-
-impl<N, D, T> VectorStorage<N, D> for T
-where
-    N: Scalar,
-    D: Dim,
-    T: Storage<N, D> + StorageMut<N, D>,
-{
-}
-
 pub trait ModelSpec {
-    type Time: Real;
-    type Scalar: Scalar + Real;
-    type Dim: Dim;
+    type Scalar: Copy + Num + NumAssign;
 }
 
-pub trait Explicit<S>: ModelSpec
-where
-    S: VectorStorage<Self::Scalar, Self::Dim>,
-{
+pub trait Explicit: ModelSpec {
     fn acceleration(
-        &mut self,
-        t: Self::Time,
-        x: &Vector<Self::Scalar, Self::Dim, S>,
-        v: &Vector<Self::Scalar, Self::Dim, S>,
-        a: &mut Vector<Self::Scalar, Self::Dim, S>,
+        &self,
+        t: Self::Scalar,
+        x: &[Self::Scalar],
+        v: &[Self::Scalar],
+        a: &mut [Self::Scalar],
     );
 }
 
-pub trait TimeEvolution<S>: ModelSpec
-where
-    S: VectorStorage<Self::Scalar, Self::Dim>,
-{
+pub trait TimeEvolution: ModelSpec {
     fn iterate(
         &mut self,
-        t: &mut Self::Time,
-        x: &mut Vector<Self::Scalar, Self::Dim, S>,
-        v: &mut Vector<Self::Scalar, Self::Dim, S>,
-        dt: Self::Time,
-    );
+        t: &mut Self::Scalar,
+        x: &mut [Self::Scalar],
+        v: &mut [Self::Scalar],
+        dt: Self::Scalar,
+    ) -> Self::Scalar;
 
     fn iterate_n(
         &mut self,
-        t: &mut Self::Time,
-        x: &mut Vector<Self::Scalar, Self::Dim, S>,
-        v: &mut Vector<Self::Scalar, Self::Dim, S>,
-        dt: Self::Time,
+        t: &mut Self::Scalar,
+        x: &mut [Self::Scalar],
+        v: &mut [Self::Scalar],
+        dt: Self::Scalar,
         n: usize,
-    ) {
+    ) -> Self::Scalar {
+        let mut dt = dt;
         for _ in 0..n {
-            self.iterate(t, x, v, dt);
+            dt = self.iterate(t, x, v, dt);
         }
+        dt
     }
 }

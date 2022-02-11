@@ -5,5 +5,4 @@ authors = ["Daiju Nakayama <42.daiju@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-nalgebra = "0.17"
-num-traits = "*"
+num-traits = "0.2"

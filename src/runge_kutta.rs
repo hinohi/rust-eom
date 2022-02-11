@@ -1,286 +1,227 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use num_traits::{One, Zero};
 
-use nalgebra::Vector;
-use num_traits::cast::FromPrimitive;
+use crate::{Explicit, ModelSpec, TimeEvolution};
 
-use crate::{Explicit, TimeEvolution, ModelSpec, VectorStorage};
-
-pub struct RK1<E, S>
+pub struct RK1<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
-    eom: Rc<RefCell<E>>,
-    a: Vector<E::Scalar, E::Dim, S>,
+    eom: E,
 }
 
-impl<E, S> RK1<E, S>
+impl<E> RK1<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
-    pub fn new(eom: Rc<RefCell<E>>, a: Vector<E::Scalar, E::Dim, S>) -> RK1<E, S> {
-        RK1 { eom, a }
+    pub fn new(eom: E) -> RK1<E> {
+        RK1 { eom }
     }
 }
 
-impl<E, S> ModelSpec for RK1<E, S>
+impl<E> ModelSpec for RK1<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
-    type Time = E::Time;
     type Scalar = E::Scalar;
-    type Dim = E::Dim;
 }
 
-impl<E, S> TimeEvolution<S> for RK1<E, S>
+impl<E> TimeEvolution for RK1<E>
 where
-    E: Explicit<S>,
-    E::Scalar: From<E::Time>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
     fn iterate(
         &mut self,
-        t: &mut Self::Time,
-        x: &mut Vector<Self::Scalar, Self::Dim, S>,
-        v: &mut Vector<Self::Scalar, Self::Dim, S>,
-        dt: Self::Time,
-    ) {
-        let h = Self::Scalar::from(dt);
-        let mut eom = self.eom.borrow_mut();
-        eom.acceleration(*t, x, v, &mut self.a);
+        t: &mut Self::Scalar,
+        x: &mut [Self::Scalar],
+        v: &mut [Self::Scalar],
+        dt: Self::Scalar,
+    ) -> Self::Scalar {
+        let mut a = vec![Self::Scalar::zero(); x.len()];
+        self.eom.acceleration(*t, x, v, &mut a);
         x.iter_mut()
             .zip(v.iter_mut())
-            .zip(self.a.iter())
+            .zip(a.iter())
             .map(|((x, v), f)| {
-                *x += *v * h;
-                *v += *f * h;
+                *x += *v * dt;
+                *v += *f * dt;
             })
             .last();
         *t += dt;
+        dt
     }
 }
 
-pub struct RK2<E, S>
+pub struct RK2<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
-    eom: Rc<RefCell<E>>,
-    x1: Vector<E::Scalar, E::Dim, S>,
-    v1: Vector<E::Scalar, E::Dim, S>,
-    a1: Vector<E::Scalar, E::Dim, S>,
-    a2: Vector<E::Scalar, E::Dim, S>,
+    eom: E,
 }
 
-impl<E, S> RK2<E, S>
+impl<E> RK2<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
-    Vector<E::Scalar, E::Dim, S>: Clone,
+    E: Explicit,
 {
-    pub fn new(eom: Rc<RefCell<E>>, a: Vector<E::Scalar, E::Dim, S>) -> RK2<E, S> {
-        RK2 {
-            eom,
-            x1: a.clone(),
-            v1: a.clone(),
-            a1: a.clone(),
-            a2: a,
-        }
+    pub fn new(eom: E) -> RK2<E> {
+        RK2 { eom }
     }
 }
 
-impl<E, S> ModelSpec for RK2<E, S>
+impl<E> ModelSpec for RK2<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
-    type Time = E::Time;
     type Scalar = E::Scalar;
-    type Dim = E::Dim;
 }
 
-impl<E, S> TimeEvolution<S> for RK2<E, S>
+impl<E> TimeEvolution for RK2<E>
 where
-    E: Explicit<S>,
-    E::Scalar: From<E::Time>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
     fn iterate(
         &mut self,
-        t: &mut Self::Time,
-        x: &mut Vector<Self::Scalar, Self::Dim, S>,
-        v: &mut Vector<Self::Scalar, Self::Dim, S>,
-        dt: Self::Time,
-    ) {
-        let h = Self::Scalar::from(dt);
-        let h2 = h * Self::Scalar::from_f64(0.5).unwrap();
-        let dt2 = dt * Self::Time::from_f64(0.5).unwrap();
-        let mut eom = self.eom.borrow_mut();
+        t: &mut Self::Scalar,
+        x: &mut [Self::Scalar],
+        v: &mut [Self::Scalar],
+        dt: Self::Scalar,
+    ) -> Self::Scalar {
+        let n = x.len();
+        assert_eq!(n, v.len());
+        let dt2 = dt / (Self::Scalar::one() + Self::Scalar::one());
         // k1
-        eom.acceleration(*t, x, v, &mut self.a1);
-        self.x1
-            .iter_mut()
-            .zip(x.iter())
-            .zip(v.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * h2)
-            .last();
-        self.v1
-            .iter_mut()
-            .zip(v.iter())
-            .zip(self.a1.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * h2)
-            .last();
+        let mut x1 = vec![Self::Scalar::zero(); n];
+        let mut v1 = vec![Self::Scalar::zero(); n];
+        let mut a = vec![Self::Scalar::zero(); n];
+        self.eom.acceleration(*t, x, v, &mut a);
+        for ((xx, x), v) in x1.iter_mut().zip(x.iter()).zip(v.iter()) {
+            *xx = *x + *v * dt2
+        }
+        for ((vv, v), a) in v1.iter_mut().zip(v.iter()).zip(a.iter()) {
+            *vv = *v + *a * dt2
+        }
         // k2
-        eom.acceleration(*t + dt2, &self.x1, &self.v1, &mut self.a2);
+        self.eom.acceleration(*t + dt2, &x1, &v1, &mut a);
         // sum
-        x.iter_mut()
-            .zip(self.v1.iter())
-            .map(|(x, &v)| *x += v * h)
-            .last();
-        v.iter_mut()
-            .zip(self.a2.iter())
-            .map(|(v, &a)| *v += a * h)
-            .last();
-        *t += dt;
-    }
-}
-
-pub struct RK4<E, S>
-where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
-{
-    eom: Rc<RefCell<E>>,
-    x1: Vector<E::Scalar, E::Dim, S>,
-    x2: Vector<E::Scalar, E::Dim, S>,
-    x3: Vector<E::Scalar, E::Dim, S>,
-    v1: Vector<E::Scalar, E::Dim, S>,
-    v2: Vector<E::Scalar, E::Dim, S>,
-    v3: Vector<E::Scalar, E::Dim, S>,
-    a1: Vector<E::Scalar, E::Dim, S>,
-    a2: Vector<E::Scalar, E::Dim, S>,
-    a3: Vector<E::Scalar, E::Dim, S>,
-    a4: Vector<E::Scalar, E::Dim, S>,
-}
-
-impl<E, S> RK4<E, S>
-where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
-    Vector<E::Scalar, E::Dim, S>: Clone,
-{
-    pub fn new(eom: Rc<RefCell<E>>, a: Vector<E::Scalar, E::Dim, S>) -> RK4<E, S> {
-        RK4 {
-            eom,
-            x1: a.clone(),
-            x2: a.clone(),
-            x3: a.clone(),
-            v1: a.clone(),
-            v2: a.clone(),
-            v3: a.clone(),
-            a1: a.clone(),
-            a2: a.clone(),
-            a3: a.clone(),
-            a4: a,
+        for (x, &v) in x.iter_mut().zip(v1.iter()) {
+            *x += v * dt
         }
+        for (v, &a) in v.iter_mut().zip(a.iter()) {
+            *v += a * dt
+        }
+        *t += dt;
+        dt
     }
 }
 
-impl<E, S> ModelSpec for RK4<E, S>
+pub struct RK4<E>
 where
-    E: Explicit<S>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
 {
-    type Time = E::Time;
-    type Scalar = E::Scalar;
-    type Dim = E::Dim;
+    eom: E,
 }
 
-impl<E, S> TimeEvolution<S> for RK4<E, S>
+impl<E> RK4<E>
 where
-    E: Explicit<S>,
-    E::Scalar: From<E::Time>,
-    S: VectorStorage<E::Scalar, E::Dim>,
+    E: Explicit,
+{
+    pub fn new(eom: E) -> RK4<E> {
+        RK4 { eom }
+    }
+}
+
+impl<E> ModelSpec for RK4<E>
+where
+    E: Explicit,
+{
+    type Scalar = E::Scalar;
+}
+
+impl<E> TimeEvolution for RK4<E>
+where
+    E: Explicit,
 {
     fn iterate(
         &mut self,
-        t: &mut Self::Time,
-        x: &mut Vector<Self::Scalar, Self::Dim, S>,
-        v: &mut Vector<Self::Scalar, Self::Dim, S>,
-        dt: Self::Time,
-    ) {
-        let h = Self::Scalar::from(dt);
-        let h2 = h * Self::Scalar::from_f64(0.5).unwrap();
-        let h6 = h / Self::Scalar::from_f64(6.0).unwrap();
-        let dt2 = dt * Self::Time::from_f64(0.5).unwrap();
-        let mut eom = self.eom.borrow_mut();
+        t: &mut Self::Scalar,
+        x: &mut [Self::Scalar],
+        v: &mut [Self::Scalar],
+        dt: Self::Scalar,
+    ) -> Self::Scalar {
+        let n = x.len();
+        assert_eq!(n, v.len());
+        let one = Self::Scalar::one();
+        let two = one + one;
+        let six = two + two + two;
+        let dt2 = dt / two;
+        let dt6 = dt / six;
         // k1
-        eom.acceleration(*t, x, v, &mut self.a1);
-        self.x1
-            .iter_mut()
+        let mut x1 = vec![Self::Scalar::zero(); n];
+        let mut v1 = vec![Self::Scalar::zero(); n];
+        let mut a1 = vec![Self::Scalar::zero(); n];
+        self.eom.acceleration(*t, x, v, &mut a1);
+        x1.iter_mut()
             .zip(x.iter())
             .zip(v.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * h2)
+            .map(|((xx, x), v)| *xx = *x + *v * dt2)
             .last();
-        self.v1
-            .iter_mut()
+        v1.iter_mut()
             .zip(v.iter())
-            .zip(self.a1.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * h2)
+            .zip(a1.iter())
+            .map(|((vv, v), a)| *vv = *v + *a * dt2)
             .last();
         // k2
-        eom.acceleration(*t + dt2, &self.x1, &self.v1, &mut self.a2);
-        self.x2
-            .iter_mut()
+        let mut x2 = vec![Self::Scalar::zero(); n];
+        let mut v2 = vec![Self::Scalar::zero(); n];
+        let mut a2 = vec![Self::Scalar::zero(); n];
+        self.eom.acceleration(*t + dt2, &x1, &v1, &mut a2);
+        x2.iter_mut()
             .zip(x.iter())
-            .zip(self.v1.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * h2)
+            .zip(v1.iter())
+            .map(|((xx, x), v)| *xx = *x + *v * dt2)
             .last();
-        self.v2
-            .iter_mut()
+        v2.iter_mut()
             .zip(v.iter())
-            .zip(self.a2.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * h2)
+            .zip(a2.iter())
+            .map(|((vv, v), a)| *vv = *v + *a * dt2)
             .last();
         // k3
-        eom.acceleration(*t + dt2, &self.x2, &self.v2, &mut self.a3);
-        self.x3
-            .iter_mut()
+        let mut x3 = vec![Self::Scalar::zero(); n];
+        let mut v3 = vec![Self::Scalar::zero(); n];
+        let mut a3 = vec![Self::Scalar::zero(); n];
+        self.eom.acceleration(*t + dt2, &x2, &v2, &mut a3);
+        x3.iter_mut()
             .zip(x.iter())
-            .zip(self.v2.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * h)
+            .zip(v2.iter())
+            .map(|((xx, x), v)| *xx = *x + *v * dt)
             .last();
-        self.v3
-            .iter_mut()
+        v3.iter_mut()
             .zip(v.iter())
-            .zip(self.a3.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * h)
+            .zip(a3.iter())
+            .map(|((vv, v), a)| *vv = *v + *a * dt)
             .last();
         // k4
-        eom.acceleration(*t + dt, &self.x3, &self.v3, &mut self.a4);
+        let mut a4 = vec![Self::Scalar::zero(); n];
+        self.eom.acceleration(*t + dt, &x3, &v3, &mut a4);
         // sum
-        let two = Self::Scalar::from_f64(2.0).unwrap();
         x.iter_mut()
             .zip(v.iter())
-            .zip(self.v1.iter())
-            .zip(self.v2.iter())
-            .zip(self.v3.iter())
+            .zip(v1.iter())
+            .zip(v2.iter())
+            .zip(v3.iter())
             .map(|((((x, &v), &v1), &v2), &v3)| {
-                *x += (v + (v1 + v2) * two + v3) * h6;
+                *x += (v + (v1 + v2) * two + v3) * dt6;
             })
             .last();
         v.iter_mut()
-            .zip(self.a1.iter())
-            .zip(self.a2.iter())
-            .zip(self.a3.iter())
-            .zip(self.a4.iter())
+            .zip(a1.iter())
+            .zip(a2.iter())
+            .zip(a3.iter())
+            .zip(a4.iter())
             .map(|((((v, &a1), &a2), &a3), &a4)| {
-                *v += (a1 + (a2 + a3) * two + a4) * h6;
+                *v += (a1 + (a2 + a3) * two + a4) * dt6;
             })
             .last();
         *t += dt;
+        dt
     }
 }
