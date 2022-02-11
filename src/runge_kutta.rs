@@ -2,6 +2,24 @@ use num_traits::{One, Zero};
 
 use crate::{Explicit, ModelSpec, TimeEvolution};
 
+macro_rules! apply {
+    (@build $pat:pat in $v:expr; ; $body:stmt) => {
+        for $pat in $v {
+            $body
+        }
+    };
+    (@build $pat:pat in $v:expr; $first_pat:pat in $first_v:expr $(,$rest_pat:pat in $rest_v:expr)* $(,)? ; $body:stmt) => {
+        apply!(@build ($pat, $first_pat) in $v.zip($first_v); $($rest_pat in $rest_v,)* ; $body)
+    };
+    (@build $first_pat:pat in $first_v:expr $(,$rest_pat:pat in $rest_v:expr)* $(,)? ; $body:stmt) => {
+        apply!(@build $first_pat in $first_v; $($rest_pat in $rest_v,)* ; $body)
+    };
+    (@build $($t:tt)*) => { compile_error!("Invalid syntax in apply!()") };
+    ($($t:tt)*) => {
+        apply!(@build $($t)*)
+    };
+}
+
 pub struct RK1<E>
 where
     E: Explicit,
@@ -38,14 +56,13 @@ where
     ) -> Self::Scalar {
         let mut a = vec![Self::Scalar::zero(); x.len()];
         self.eom.acceleration(*t, x, v, &mut a);
-        x.iter_mut()
-            .zip(v.iter_mut())
-            .zip(a.iter())
-            .map(|((x, v), f)| {
+        apply!(
+            x in x.iter_mut(), v in v, a in a;
+            {
                 *x += *v * dt;
-                *v += *f * dt;
-            })
-            .last();
+                *v += a * dt;
+            }
+        );
         *t += dt;
         dt
     }
@@ -93,21 +110,13 @@ where
         let mut v1 = vec![Self::Scalar::zero(); n];
         let mut a = vec![Self::Scalar::zero(); n];
         self.eom.acceleration(*t, x, v, &mut a);
-        for ((xx, x), v) in x1.iter_mut().zip(x.iter()).zip(v.iter()) {
-            *xx = *x + *v * dt2
-        }
-        for ((vv, v), a) in v1.iter_mut().zip(v.iter()).zip(a.iter()) {
-            *vv = *v + *a * dt2
-        }
+        apply!(xx in x1.iter_mut(), &x in x.iter(), &v in v.iter(); *xx = x + v * dt2);
+        apply!(vv in v1.iter_mut(), &v in v.iter(), &a in a.iter(); *vv = v + a * dt2);
         // k2
         self.eom.acceleration(*t + dt2, &x1, &v1, &mut a);
         // sum
-        for (x, &v) in x.iter_mut().zip(v1.iter()) {
-            *x += v * dt
-        }
-        for (v, &a) in v.iter_mut().zip(a.iter()) {
-            *v += a * dt
-        }
+        apply!(x in x.iter_mut(), &v in v1.iter(); *x += v * dt);
+        apply!(v in v.iter_mut(), &a in a.iter(); *v += a * dt);
         *t += dt;
         dt
     }
@@ -159,68 +168,34 @@ where
         let mut v1 = vec![Self::Scalar::zero(); n];
         let mut a1 = vec![Self::Scalar::zero(); n];
         self.eom.acceleration(*t, x, v, &mut a1);
-        x1.iter_mut()
-            .zip(x.iter())
-            .zip(v.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * dt2)
-            .last();
-        v1.iter_mut()
-            .zip(v.iter())
-            .zip(a1.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * dt2)
-            .last();
+        apply!(xx in x1.iter_mut(), &x in x.iter(), &v in v.iter(); *xx = x + v * dt2);
+        apply!(vv in v1.iter_mut(), &v in v.iter(), &a in a1.iter(); *vv = v + a * dt2);
         // k2
         let mut x2 = vec![Self::Scalar::zero(); n];
         let mut v2 = vec![Self::Scalar::zero(); n];
         let mut a2 = vec![Self::Scalar::zero(); n];
         self.eom.acceleration(*t + dt2, &x1, &v1, &mut a2);
-        x2.iter_mut()
-            .zip(x.iter())
-            .zip(v1.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * dt2)
-            .last();
-        v2.iter_mut()
-            .zip(v.iter())
-            .zip(a2.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * dt2)
-            .last();
+        apply!(xx in x2.iter_mut(), &x in x.iter(), &v in v1.iter(); *xx = x + v * dt2);
+        apply!(vv in v2.iter_mut(), &v in v.iter(), &a in a2.iter(); *vv = v + a * dt2);
         // k3
         let mut x3 = vec![Self::Scalar::zero(); n];
         let mut v3 = vec![Self::Scalar::zero(); n];
         let mut a3 = vec![Self::Scalar::zero(); n];
         self.eom.acceleration(*t + dt2, &x2, &v2, &mut a3);
-        x3.iter_mut()
-            .zip(x.iter())
-            .zip(v2.iter())
-            .map(|((xx, x), v)| *xx = *x + *v * dt)
-            .last();
-        v3.iter_mut()
-            .zip(v.iter())
-            .zip(a3.iter())
-            .map(|((vv, v), a)| *vv = *v + *a * dt)
-            .last();
+        apply!(xx in x3.iter_mut(), &x in x.iter(), &v in v2.iter(); *xx = x + v * dt);
+        apply!(vv in v3.iter_mut(), &v in v.iter(), &a in a3.iter(); *vv = v + a * dt);
         // k4
         let mut a4 = vec![Self::Scalar::zero(); n];
         self.eom.acceleration(*t + dt, &x3, &v3, &mut a4);
         // sum
-        x.iter_mut()
-            .zip(v.iter())
-            .zip(v1.iter())
-            .zip(v2.iter())
-            .zip(v3.iter())
-            .map(|((((x, &v), &v1), &v2), &v3)| {
-                *x += (v + (v1 + v2) * two + v3) * dt6;
-            })
-            .last();
-        v.iter_mut()
-            .zip(a1.iter())
-            .zip(a2.iter())
-            .zip(a3.iter())
-            .zip(a4.iter())
-            .map(|((((v, &a1), &a2), &a3), &a4)| {
-                *v += (a1 + (a2 + a3) * two + a4) * dt6;
-            })
-            .last();
+        apply!(
+            x in x.iter_mut(), &v in v.iter(), &v1 in v1.iter(), &v2 in v2.iter(), &v3 in v3.iter();
+            *x += (v + (v1 + v2) * two + v3) * dt6
+        );
+        apply!(
+            v in v.iter_mut(), &a1 in a1.iter(), &a2 in a2.iter(), &a3 in a3.iter(), &a4 in a4.iter();
+            *v += (a1 + (a2 + a3) * two + a4) * dt6
+        );
         *t += dt;
         dt
     }
